@@ -39,7 +39,8 @@ class ViewController: UIViewController
         {
             let data = txtView.text.data(using: String.Encoding.utf8)
             
-            do {
+            do
+            {
                 let array = try JSONSerialization.jsonObject(with: data!, options: JSONSerialization.ReadingOptions.mutableContainers) as! [[Int]]
                 
                 if let xPosition = txtField.text, let row = Int(xPosition)
@@ -54,9 +55,9 @@ class ViewController: UIViewController
                 }
             }
                 
-            catch {
-                
-                showAlert(title: "Invalid Format", message: "Please check the input format as per below example", vc: self)
+            catch
+            {
+                outputView.text = "Please check the input format as per the example on left."
             }
         }
     }

@@ -5,6 +5,3 @@ Description:
 
 Solution:
 - The best conceptual solution to be achieved by applying funcdamental concept of Graph theory and Shortest Path Algorithm.
-
-Limitation:
-- Currently this code is calibrated against single path search cycle.  

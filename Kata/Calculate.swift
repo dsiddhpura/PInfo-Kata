@@ -19,8 +19,6 @@ struct Cell
     var point: Point
     var value: Int
     
-    //var isVisited: Bool
-    
     init(pt: Point, value: Int)
     {
         self.point = pt
@@ -28,17 +26,29 @@ struct Cell
     }
 }
 
-//This class will act like a Queue of cells (you can say checkpoints on the route)
-class Path
+class Path: NSObject, NSCopying
 {
-    var pathMap = [Cell]()
+    private var pathMap: [Cell] = [Cell]()
     var totalWeight: Int = 0
-    var isSucceed: Bool
+    var isSucceed: Bool = false
     
-    init()
+    override init()
     {
-        //This will indicate whether this particular path has made its way till the end (last column)
-        isSucceed = true
+        super.init()
+    }
+    
+    private init(pathMap: [Cell], totalWeight: Int)
+    {
+        self.pathMap = pathMap
+        self.totalWeight = totalWeight
+        self.isSucceed = false
+        
+        super.init()
+    }
+    
+    func copy(with zone: NSZone? = nil) -> Any {
+        let copy = Path(pathMap: self.pathMap, totalWeight: self.totalWeight)
+        return copy
     }
     
     func addCell(cell: Cell)
@@ -76,127 +86,137 @@ struct Point
     var y: Int
 }
 
+var listOfPath = [Path]()
+
 func find(array: [[Int]], entryPoint: Point) -> (Bool, Int, String)
 {
-    let cellPath = Path()
-    
     if (array.count <= entryPoint.x)
     {
-        showAlert(title: "Invalid", message: "Index out of bound", vc: nil)
-        
         return (false, 0, "Index out of bounds")
     }
-    
-    let value = array[entryPoint.x][entryPoint.y]
-    
-    let cell = Cell(pt: entryPoint, value: value)
-    cellPath.addCell(cell: cell)
     
     max_row_count = array.count
     max_column_count = array[entryPoint.x].count
     
-    var currentPoint = entryPoint
+    let currentPoint = entryPoint
     
-    /* We can make below section ('for' loop) recursive for tracing different routes and each route can be added in below variable "listOfPaths"
-     which will act like a Queue of paths.
-     
-     var listOfPaths: [Path]
-     
-     Depending upon cells visited we can compare the route for different paths. And each path will have a property called total weight by which
-     we can compare the weights of different paths anytime.
-     */
+    let cellPath = Path()
+    listOfPath.append(cellPath)
     
-    for j in 1..<max_column_count
+    let value = array[currentPoint.x][currentPoint.y]
+    
+    let cell = Cell(pt: currentPoint, value: value)
+    cellPath.addCell(cell: cell)
+    
+    compute(array: array, fromPoint: currentPoint, forPath: cellPath)
+    
+    if(listOfPath.count > 0)
     {
-        var topRow: Int = 0
-        var currentRow: Int = 0
-        var bottomRow: Int = 0
+        var lowest: (Int, Int) = (Int(INT_MAX), Int(INT_MAX))
         
-        topRow = currentPoint.x - 1
-        
-        if(topRow < 0)
+        for index in 0..<listOfPath.count
         {
-            topRow = max_row_count - 1
-        }
-        
-        currentRow = currentPoint.x
-        
-        bottomRow = currentPoint.x + 1
-        
-        if(bottomRow > max_row_count - 1)
-        {
-            bottomRow = 0
-        }
-        
-        let nextRowIndex = findMinValueIndex(array: array, first: topRow, second: currentRow, third: bottomRow, column: j)
-        let nextCellValue = array[nextRowIndex][j]
-        
-        if cellPath.totalWeight + nextCellValue > 50
-        {
-            //Current Path is failed to reach last column
-            cellPath.isSucceed = false
-            break
-        }
-        
-        currentPoint.x = nextRowIndex
-        currentPoint.y = j + 1
-        
-        let cell = Cell(pt: currentPoint, value: nextCellValue)
-        cellPath.addCell(cell: cell)
-    }
-    
-    let path = cellPath.getIndexPath()
-    print("\(cellPath.isSucceed)" + "\n\(cellPath.totalWeight)" + "\n\(path)")
-    
-    return (cellPath.isSucceed, cellPath.totalWeight, path)
-}
-
-func compute(cell: Cell)
-{
-    
-}
-
-func findMinValueIndex(array: [[Int]], first: Int, second: Int, third: Int, column: Int) -> Int
-{
-    if(array[first][column] <= array[second][column])
-    {
-        if(array[first][column] < array[third][column])
-        {
-            return first
-        }
+            let cellPath = listOfPath[index]
             
-        else
+            if(lowest.0 > cellPath.totalWeight)
+            {
+                lowest.0 = cellPath.totalWeight
+                lowest.1 = index
+            }
+        }
+        
+        let path = listOfPath[lowest.1]
+        print("\(path.isSucceed)" + "\n\(path.totalWeight)" + "\n\(path.getIndexPath())")
+        listOfPath.removeAll()
+        
+        return (path.isSucceed, path.totalWeight, path.getIndexPath())
+    }
+        
+    else
+    {
+        print("false", "\n-1", "\n---")
+        return (false, -1, "---")
+    }
+}
+
+func compute(array: [[Int]], fromPoint: Point, forPath cellPath: Path)
+{
+    var currentPoint = fromPoint
+    
+    currentPoint.y = currentPoint.y + 1
+    
+    if currentPoint.y < max_column_count
+    {
+        let rows = getNeighbourRows(forPoint: currentPoint)
+        //        let topRow: Int = rows.top
+        //        let currentRow: Int = rows.current
+        //        let bottomRow: Int = rows.bottom
+        
+        
+        let topCellValue = array[rows.top][currentPoint.y]
+        
+        if (cellPath.totalWeight + topCellValue < 50)
         {
-            return third
+            let result = getNextCellPath(row: rows.top, path: cellPath, point: currentPoint, value: topCellValue)
+            compute(array: array, fromPoint: result.point, forPath: result.path)
+        }
+        
+        let middleCellValue = array[rows.current][currentPoint.y]
+        
+        if (cellPath.totalWeight + middleCellValue < 50)
+        {
+            let result = getNextCellPath(row: rows.current, path: cellPath, point: currentPoint, value: middleCellValue)
+            compute(array: array, fromPoint: result.point, forPath: result.path)
+        }
+        
+        let bottomCellValue = array[rows.bottom][currentPoint.y]
+        
+        if (cellPath.totalWeight + bottomCellValue < 50)
+        {
+            let result = getNextCellPath(row: rows.bottom, path: cellPath, point: currentPoint, value: bottomCellValue)
+            compute(array: array, fromPoint: result.point, forPath: result.path)
+        }
+        
+        if let index = listOfPath.index(of: cellPath)
+        {
+            listOfPath.remove(at: index)
         }
     }
         
     else
     {
-        if(array[second][column] <= array[third][column])
-        {
-            return second
-        }
-            
-        else
-        {
-            return third
-        }
+        cellPath.isSucceed = true
     }
 }
 
-/*find(array: [ [3,4,1,2,8,6],
-              [6,1,8,2,7,4],
-              [5,9,3,9,9,5],
-              [8,4,1,3,2,6],
-              [3,7,2,8,6,4] ], entryPoint: Point(x: 0, y: 0))*/
+func getNextCellPath(row: Int, path: Path, point: Point, value: Int) -> (point: Point, path: Path)
+{
+    let nextCellPath = path.copy() as! Path
+    listOfPath.append(nextCellPath)
+    
+    let nextPoint = Point(x: row, y: point.y)
+    
+    let cell = Cell(pt: nextPoint, value: value)
+    nextCellPath.addCell(cell: cell)
+    
+    return (nextPoint, nextCellPath)
+}
 
-/*find(array: [ [3,4,1,2,8,6],
- [6,1,8,2,7,4],
- [5,9,3,9,9,5],
- [8,4,1,3,2,6],
- [3,7,2,1,2,3] ], entryPoint: Point(x: 0, y: 0))*/
-
-/*find(array: [ [19,10,19,10,19],
- [21,23,20,19,12],
- [20,12,20,11,10] ], entryPoint: Point(x: 0, y: 0))*/
+func getNeighbourRows(forPoint currentPoint: Point) -> (top: Int, current: Int, bottom: Int)
+{
+    var topRow: Int = currentPoint.x - 1
+    if(topRow < 0)
+    {
+        topRow = max_row_count - 1
+    }
+    
+    let currentRow: Int = currentPoint.x
+    
+    var bottomRow: Int = currentPoint.x + 1
+    if(bottomRow > max_row_count - 1)
+    {
+        bottomRow = 0
+    }
+    
+    return (topRow, currentRow, bottomRow)
+}
